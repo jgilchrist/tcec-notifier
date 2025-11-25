@@ -1,8 +1,6 @@
-# CCRL Live Notifier
+# TCEC Notifier
 
-Get notified when games featuring your engine (or others) start on ccrl.live broadcasts.
-
-Currently, the only supported method of notification is Discord webhook.
+Get notified when games featuring your engine (or others) start on TCEC.
 
 ## Usage
 
