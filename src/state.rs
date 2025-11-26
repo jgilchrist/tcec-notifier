@@ -1,4 +1,4 @@
-use crate::ccrl_pgn::Pgn;
+use crate::tcec_pgn::Pgn;
 use anyhow::Result;
 use std::collections::HashSet;
 use std::fs::{File, OpenOptions};

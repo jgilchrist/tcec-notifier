@@ -20,9 +20,9 @@ struct ConfigFile {
 }
 
 pub fn get_config() -> Result<Config> {
-    let config_url = std::env::var("CCRL_CONFIG_URL")?;
-    let notify_webhook = std::env::var("CCRL_NOTIFY_WEBHOOK")?;
-    let log_webhook = std::env::var("CCRL_LOG_WEBHOOK").ok();
+    let config_url = std::env::var("TCEC_CONFIG_URL")?;
+    let notify_webhook = std::env::var("TCEC_NOTIFY_WEBHOOK")?;
+    let log_webhook = std::env::var("TCEC_LOG_WEBHOOK").ok();
 
     Ok(Config {
         config_url: Url::parse(&config_url)?,

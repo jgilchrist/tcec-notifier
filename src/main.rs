@@ -7,13 +7,13 @@ use std::cmp::PartialEq;
 use std::collections::HashSet;
 use std::time::Duration;
 
-mod ccrl_pgn;
-mod ccrllive;
 mod config;
 mod discord;
 mod log;
 mod notify;
 mod state;
+mod tcec;
+mod tcec_pgn;
 
 const POLL_DELAY: Duration = Duration::from_secs(30);
 
@@ -58,81 +58,79 @@ fn main() -> Result<()> {
             }
         }
 
-        let current_games_result = ccrllive::get_current_games(&log);
+        let current_game_result = tcec::get_current_game(&log);
 
-        let Ok(current_games) = current_games_result else {
-            let e = current_games_result.unwrap_err();
+        let Ok(current_game) = current_game_result else {
+            let e = current_game_result.unwrap_err();
 
-            log.warning(&format!("Unable to fetch in-progress games: {:?}", e));
+            log.warning(&format!("Unable to fetch in-progress game: {:?}", e));
 
             std::thread::sleep(POLL_DELAY);
             continue;
         };
 
+        let Some(game) = current_game else {
+            // We might have a game that's in its opening and hasn't 'started' yet
+            std::thread::sleep(POLL_DELAY);
+            continue;
+        };
+
         if first_run {
-            for (room, game) in &current_games {
-                log.info(&format!(
-                    "`{}` In progress: `{}` vs `{}` ({} plies)",
-                    room.code(),
-                    game.white_player,
-                    game.black_player,
-                    game.moves.len()
-                ))
-            }
+            log.info(&format!(
+                "In progress: `{}` vs `{}` ({} plies)",
+                game.white_player,
+                game.black_player,
+                game.moves.len()
+            ));
 
             first_run = false;
         }
 
-        let new_games = current_games
-            .iter()
-            // Filter out games we've already seen.
-            .filter(|(_, game)| !seen_games.contains(game))
-            .collect::<Vec<_>>();
+        if seen_games.contains(&game) {
+            // Already seen this game - just wait
+            std::thread::sleep(POLL_DELAY);
+            continue;
+        }
 
-        for (room, game) in &new_games {
-            log.info(&format!(
-                "`{}` - `{}` vs `{}`",
-                room.code(),
-                game.white_player,
-                game.black_player,
-            ));
+        // If we got this far, we've got a new game
+        log.info(&format!(
+            "`{}` vs `{}`",
+            game.white_player, game.black_player,
+        ));
 
-            let mut mentions = HashSet::new();
+        let mut mentions = HashSet::new();
 
-            for (engine, notifies) in &notify_config.engines {
-                if game.has_player(engine) {
-                    mentions.extend(notifies.iter().cloned());
-                    log.info(&format!(
-                        "`{}` Will notify {} users for engine `{}`",
-                        room.code(),
-                        notifies.len(),
-                        &engine,
-                    ));
-                }
+        for (engine, notifies) in &notify_config.engines {
+            if game.has_player(engine) {
+                mentions.extend(notifies.iter().cloned());
+                log.info(&format!(
+                    "Will notify {} users for engine `{}`",
+                    notifies.len(),
+                    &engine,
+                ));
             }
+        }
 
-            if !mentions.is_empty() {
-                let notify_result = notify::notify(
-                    &config,
-                    NotifyContent {
-                        white_player: game.white_player.clone(),
-                        black_player: game.black_player.clone(),
-                        tournament: game.site.clone(),
-                        room: room.clone(),
-                        mentions,
-                    },
-                );
+        if !mentions.is_empty() {
+            let notify_result = notify::notify(
+                &config,
+                NotifyContent {
+                    white_player: game.white_player.clone(),
+                    black_player: game.black_player.clone(),
+                    tournament: game.event.clone(),
+                    mentions,
+                },
+            );
 
-                if let Err(e) = notify_result {
-                    log.error(&format!("Unable to send notify: {:?}", e));
-                }
+            if let Err(e) = notify_result {
+                log.error(&format!("Unable to send notify: {:?}", e));
             }
+        }
 
-            let write_state_result = seen_games.add(game);
+        let write_state_result = seen_games.add(&game);
 
-            if let Err(e) = write_state_result {
-                log.error(&format!("Unable to write seen game to file: {:?}", e));
-            }
+        if let Err(e) = write_state_result {
+            log.error(&format!("Unable to write seen game to file: {:?}", e));
         }
 
         std::thread::sleep(POLL_DELAY);

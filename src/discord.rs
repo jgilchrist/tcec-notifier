@@ -5,7 +5,7 @@ pub fn send_message(webhook_url: &str, message: &str) -> Result<()> {
     call_webhook(
         webhook_url,
         json!({
-            "username": "ccrl-live-notifier",
+            "username": "tcec-notifier",
             "allowed_mentions": { "parse": ["users"] },
             "content": message
         }),
