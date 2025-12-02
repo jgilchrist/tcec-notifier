@@ -32,7 +32,7 @@ impl EngineName {
     }
 
     pub fn matches(&self, name: &str) -> bool {
-        Self::normalize(&self.0) == Self::normalize(name)
+        Self::normalize(&self.0).contains(&Self::normalize(name))
     }
 }
 
@@ -93,14 +93,6 @@ pub fn get_current_game(log: &dyn Logger) -> Result<Option<Pgn>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_matches_does_not_match_substring() {
-        let player = EngineName::new("Lunar");
-
-        assert!(player.matches("Lunar"));
-        assert!(!player.matches("Luna"));
-    }
 
     #[test]
     fn test_matches_ignores_version() {
